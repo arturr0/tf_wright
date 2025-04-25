@@ -1,0 +1,13 @@
+{
+    "name": "tfjs-node-project",
+    "version": "1.0.0",
+    "description": "Minimal TensorFlow.js Node.js project",
+    "main": "model.js",
+    "scripts": {
+      "start": "node model.js"
+    },
+    "dependencies": {
+      "@tensorflow/tfjs-node": "^4.15.0"
+    }
+  }
+  

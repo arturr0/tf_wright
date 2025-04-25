@@ -1,0 +1,44 @@
+{
+    "format": "layers-model",
+    "generatedBy": "dummy-test",
+    "convertedBy": "manual",
+    "modelTopology": {
+      "class_name": "Sequential",
+      "config": [
+        {
+          "class_name": "Flatten",
+          "config": {
+            "batch_input_shape": [null, 28, 28, 1],
+            "dtype": "float32",
+            "name": "flatten_1"
+          }
+        },
+        {
+          "class_name": "Dense",
+          "config": {
+            "units": 10,
+            "activation": "softmax",
+            "name": "dense_1"
+          }
+        }
+      ]
+    },
+    "weightsManifest": [
+      {
+        "paths": ["weights.bin"],
+        "weights": [
+          {
+            "name": "dense_1/kernel",
+            "shape": [784, 10],
+            "dtype": "float32"
+          },
+          {
+            "name": "dense_1/bias",
+            "shape": [10],
+            "dtype": "float32"
+          }
+        ]
+      }
+    ]
+  }
+  
