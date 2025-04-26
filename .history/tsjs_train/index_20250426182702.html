@@ -8,19 +8,14 @@
   <!-- Load TensorFlow.js from CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
   
-  <!-- Use tfjs-vis from CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@1.0.2/dist/tfjs-vis.umd.min.js"></script>
-  
-  <!-- Favicon (optional) -->
-  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  <!-- Use an alternative CDN for tfjs-vis -->
+  <script src="https://unpkg.com/@tensorflow/tfjs-vis@0.4.1/dist/tfjs-vis.min.js"></script>
 </head>
 <body>
   <h1>TensorFlow.js with TFJS-Vis Example</h1>
 
-  <!-- Load data.js first -->
+  <!-- Add your JavaScript files -->
   <script type="module" src="data.js"></script>
-  
-  <!-- Load script.js after data.js -->
   <script type="module" src="script.js"></script>
 </body>
 </html>

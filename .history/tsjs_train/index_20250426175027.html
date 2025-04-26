@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digit Recognizer</title>
+  <!-- Import TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+  <!-- Import tfjs-vis for visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@latest"></script>
+  <!-- Import the data and main script files -->
+  <script type="module" src="data.js"></script>
+  <script type="module" src="script.js"></script>
+  <style>
+    canvas {
+      border: 1px solid #000;
+      margin-top: 10px;
+    }
+    #controls {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Train a Digit Recognizer</h1>
+  <div id="training-status"></div>
+  <canvas id="canvas" width="280" height="280"></canvas>
+  <div id="controls">
+    <button id="clear">Clear</button>
+    <button id="predict">Predict</button>
+  </div>
+  <p id="result">Draw a digit and click Predict</p>
+</body>
+</html>

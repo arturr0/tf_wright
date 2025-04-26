@@ -1,0 +1,11 @@
+// data.js
+export async function loadData() {
+  const data = tf.tensor([1, 2, 3, 4, 5]);
+  console.log('Tensor Data:', data);
+  const squaredData = data.square();
+  squaredData.print();
+  return data;
+}
+
+// Automatically call loadData to test the function
+loadData();
