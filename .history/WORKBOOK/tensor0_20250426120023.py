@@ -33,12 +33,22 @@ tu = tf.eye(4)
 # c = tf.multiply(a, b)
 # print(c)
 
-a = tf.ones(2)
-print(a)
-b = tf.expand_dims(a, 1)
-print(b)
-c = tf.squeeze(b)
-print(c) 
+# a = tf.ones(2)
+# print(a)
+# b = tf.expand_dims(a, 1)
+# print(b)
+# c = tf.squeeze(b)
+# print(c) 
 
-sum = b + c
-print(sum)
+# sum = b + c
+# print(sum)
+
+initialTensor = tf.tensor([1, 2, 3])
+print(initialTensor)
+myVariable = tf.variable(initialTensor)
+print(myVariable)
+newTensor = tf.tensor([10, 20, 30])
+myVariable.assign(newTensor)
+print(newTensor)
+print(myVariable)
+

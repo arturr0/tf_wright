@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>XOR Perceptron Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <style>
+      body {
+        font-family: Arial;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+      }
+      canvas {
+        border: 1px solid black;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Real-Time XOR Solving with Perceptron (TensorFlow.js)</h2>
+    <canvas id="canvas" width="400" height="400"></canvas>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+
+      // XOR dataset
+      const xs = tf.tensor2d([
+        [0, 0],
+        [0, 1],
+        [1, 0],
+        [1, 1],
+      ]);
+
+      const ys = tf.tensor2d([[0], [1], [1], [0]]);
+
+      // Simple Perceptron model
+      const model = tf.sequential();
+      model.add(
+        tf.layers.dense({ units: 4, inputShape: [2], activation: "sigmoid" })
+      );
+      model.add(tf.layers.dense({ units: 1, activation: "sigmoid" }));
+
+      model.compile({
+        optimizer: tf.train.adam(0.1),
+        loss: "meanSquaredError",
+      });
+
+      async function train() {
+        for (let i = 0; i < 500; i++) {
+          const history = await model.fit(xs, ys, { epochs: 1, shuffle: true });
+          if (i % 5 === 0) {
+            // Update every 5 epochs
+            await tf.nextFrame();
+            visualize();
+          }
+        }
+      }
+
+      function visualize() {
+        const resolution = 10;
+        const cols = canvas.width / resolution;
+        const rows = canvas.height / resolution;
+
+        const inputs = [];
+
+        for (let i = 0; i < cols; i++) {
+          for (let j = 0; j < rows; j++) {
+            const x1 = i / cols;
+            const x2 = j / rows;
+            inputs.push([x1, x2]);
+          }
+        }
+
+        const inputTensor = tf.tensor2d(inputs);
+        const predictions = model.predict(inputTensor);
+
+        predictions.data().then((preds) => {
+          let idx = 0;
+          for (let i = 0; i < cols; i++) {
+            for (let j = 0; j < rows; j++) {
+              const pred = preds[idx];
+              ctx.fillStyle = `rgb(${pred * 255}, ${pred * 255}, ${
+                pred * 255
+              })`;
+              ctx.fillRect(
+                i * resolution,
+                j * resolution,
+                resolution,
+                resolution
+              );
+              idx++;
+            }
+          }
+        });
+      }
+
+      train();
+    </script>
+  </body>
+</html>
