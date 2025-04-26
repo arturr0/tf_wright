@@ -4,9 +4,11 @@
     "description": "Minimal TensorFlow.js Node.js project",
     "main": "model.js",
     "scripts": {
-        "start": "node model.js"
+      "start": "node model.js"
     },
     "dependencies": {
-        "@tensorflow/tfjs-node": "^1.2.3"
-    }
-}
+      "@tensorflow/tfjs-node": "^1.2.3"
+    },
+    "type": "module"
+  }
+  

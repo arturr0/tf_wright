@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Handwriting Recognition</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+<script>
+async function trainAndSaveModel() {
+  // Load MNIST data
+  const mnist = new MnistData();
+  await mnist.load();
+
+  const model = tf.sequential();
+
+  // Define model architecture
+  model.add(tf.layers.conv2d({
+    inputShape: [28, 28, 1],
+    filters: 16,
+    kernelSize: 3,
+    activation: 'relu',
+  }));
+  model.add(tf.layers.maxPooling2d({ poolSize: [2, 2] }));
+  model.add(tf.layers.flatten());
+  model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
+  model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+
+  model.compile({
+    optimizer: 'adam',
+    loss: 'categoricalCrossentropy',
+    metrics: ['accuracy'],
+  });
+
+  // Train the model
+  const BATCH_SIZE = 512;
+  const EPOCHS = 10;
+  await model.fit(mnist.trainImages, mnist.trainLabels, {
+    batchSize: BATCH_SIZE,
+    epochs: EPOCHS,
+    validationData: [mnist.testImages, mnist.testLabels],
+    callbacks: tf.callbacks.earlyStopping({ monitor: 'val_loss', patience: 2 }),
+  });
+
+  console.log('Training complete');
+
+  // Save model to IndexedDB or file downloads
+  await model.save('downloads://model');
+}
+
+// MNIST data loader
+class MnistData {
+  constructor() {
+    this.MNIST_IMAGES_SPRITE_PATH =
+      'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
+    this.MNIST_LABELS_PATH =
+      'https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8';
+    this.IMAGE_SIZE = 28 * 28;
+    this.NUM_CLASSES = 10;
+    this.NUM_DATASET_ELEMENTS = 65000;
+    this.NUM_TRAIN_ELEMENTS = 55000;
+    this.NUM_TEST_ELEMENTS = this.NUM_DATASET_ELEMENTS - this.NUM_TRAIN_ELEMENTS;
+  }
+
+  async load() {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const imgRequest = fetch(this.MNIST_IMAGES_SPRITE_PATH);
+    const labelsRequest = fetch(this.MNIST_LABELS_PATH);
+
+    const [imgResponse, labelsResponse] = await Promise.all([imgRequest, labelsRequest]);
+
+    const imgBlob = await imgResponse.blob();
+    const labelsArrayBuffer = await labelsResponse.arrayBuffer();
+
+    const imgBitmap = await createImageBitmap(imgBlob);
+    canvas.width = imgBitmap.width;
+    canvas.height = imgBitmap.height;
+    ctx.drawImage(imgBitmap, 0, 0);
+
+    const datasetBytesBuffer = new ArrayBuffer(this.NUM_DATASET_ELEMENTS * this.IMAGE_SIZE * 4);
+    const datasetBytesView = new Float32Array(datasetBytesBuffer);
+
+    for (let i = 0; i < this.NUM_DATASET_ELEMENTS; i++) {
+      const imageData = ctx.getImageData(
+        (i % 100) * 28, Math.floor(i / 100) * 28, 28, 28
+      );
+
+      for (let j = 0; j < this.IMAGE_SIZE; j++) {
+        datasetBytesView[i * this.IMAGE_SIZE + j] = imageData.data[j * 4] / 255;
+      }
+    }
+
+    this.datasetImages = new Float32Array(datasetBytesBuffer);
+
+    const labels = new Uint8Array(labelsArrayBuffer);
+    this.datasetLabels = labels;
+  }
+
+  get trainImages() {
+    return tf.tensor4d(
+      this.datasetImages.slice(0, this.NUM_TRAIN_ELEMENTS * this.IMAGE_SIZE),
+      [this.NUM_TRAIN_ELEMENTS, 28, 28, 1]
+    );
+  }
+
+  get testImages() {
+    return tf.tensor4d(
+      this.datasetImages.slice(this.NUM_TRAIN_ELEMENTS * this.IMAGE_SIZE),
+      [this.NUM_TEST_ELEMENTS, 28, 28, 1]
+    );
+  }
+
+  get trainLabels() {
+    return tf.oneHot(
+      tf.tensor1d(this.datasetLabels.slice(0, this.NUM_TRAIN_ELEMENTS), 'int32'),
+      this.NUM_CLASSES
+    );
+  }
+
+  get testLabels() {
+    return tf.oneHot(
+      tf.tensor1d(this.datasetLabels.slice(this.NUM_TRAIN_ELEMENTS), 'int32'),
+      this.NUM_CLASSES
+    );
+  }
+}
+
+// Call this function to train
+trainAndSaveModel();
+</script>
+
+</head>
+<body>
+  <h1>Draw a Digit</h1>
+  <div id="grid"></div>
+  <button id="clear">Clear</button>
+  <p>Prediction: <span id="prediction">None</span></p>
+
+  <!-- TensorFlow.js Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.6.0/dist/tf.min.js"></script>
+  <!-- <script src="script.js"></script> -->
+</body>
+</html>

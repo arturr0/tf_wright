@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Handwriting Recognition</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+</head>
+<body>
+  <h1>Draw a Digit</h1>
+  <div id="grid"></div>
+  <button id="clear">Clear</button>
+  <p>Prediction: <span id="prediction">None</span></p>
+
+  <script>
+    async function trainAndSaveModel() {
+      const mnist = new MnistData();
+      await mnist.load();
+
+      const model = tf.sequential();
+
+      model.add(tf.layers.conv2d({
+        inputShape: [28, 28, 1],
+        filters: 16,
+        kernelSize: 3,
+        activation: 'relu',
+      }));
+      model.add(tf.layers.maxPooling2d({ poolSize: [2, 2] }));
+      model.add(tf.layers.flatten());
+      model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
+      model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+
+      model.compile({
+        optimizer: 'adam',
+        loss: 'categoricalCrossentropy',
+        metrics: ['accuracy'],
+      });
+
+      const BATCH_SIZE = 512;
+      const EPOCHS = 10;
+      await model.fit(mnist.trainImages, mnist.trainLabels, {
+        batchSize: BATCH_SIZE,
+        epochs: EPOCHS,
+        validationData: [mnist.testImages, mnist.testLabels],
+        callbacks: tf.callbacks.earlyStopping({ monitor: 'val_loss', patience: 2 }),
+      });
+
+      console.log('Training complete');
+
+      await model.save('downloads://model');
+    }
+
+    class MnistData {
+      constructor() {
+        this.MNIST_IMAGES_SPRITE_PATH =
+          'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
+        this.MNIST_LABELS_PATH =
+          'https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8';
+        this.IMAGE_SIZE = 28 * 28;
+        this.NUM_CLASSES = 10;
+        this.NUM_DATASET_ELEMENTS = 65000;
+        this.NUM_TRAIN_ELEMENTS = 55000;
+        this.NUM_TEST_ELEMENTS = this.NUM_DATASET_ELEMENTS - this.NUM_TRAIN_ELEMENTS;
+      }
+
+      async load() {
+        const imgRequest = fetch(this.MNIST_IMAGES_SPRITE_PATH);
+        const labelsRequest = fetch(this.MNIST_LABELS_PATH);
+
+        const [imgResponse, labelsResponse] = await Promise.all([imgRequest, labelsRequest]);
+
+        const imgBlob = await imgResponse.blob();
+        const labelsArrayBuffer = await labelsResponse.arrayBuffer();
+
+        const img = await createImageBitmap(imgBlob);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+
+        const { width, height } = img;
+        const imageData = ctx.getImageData(0, 0, width, height);
+
+        const datasetBytes = new Float32Array(this.NUM_DATASET_ELEMENTS * this.IMAGE_SIZE);
+
+        for (let i = 0; i < this.NUM_DATASET_ELEMENTS; i++) {
+          const startRow = Math.floor(i / 100) * 28;
+          const startCol = (i % 100) * 28;
+
+          for (let y = 0; y < 28; y++) {
+            for (let x = 0; x < 28; x++) {
+              const pixelIndex = ((startRow + y) * width + (startCol + x)) * 4;
+              datasetBytes[i * this.IMAGE_SIZE + (y * 28 + x)] = imageData.data[pixelIndex] / 255;
+            }
+          }
+        }
+
+        this.datasetImages = datasetBytes;
+        this.datasetLabels = new Uint8Array(labelsArrayBuffer);
+      }
+
+      get trainImages() {
+        return tf.tensor4d(
+          this.datasetImages.slice(0, this.NUM_TRAIN_ELEMENTS * this.IMAGE_SIZE),
+          [this.NUM_TRAIN_ELEMENTS, 28, 28, 1]
+        );
+      }
+
+      get testImages() {
+        return tf.tensor4d(
+          this.datasetImages.slice(this.NUM_TRAIN_ELEMENTS * this.IMAGE_SIZE),
+          [this.NUM_TEST_ELEMENTS, 28, 28, 1]
+        );
+      }
+
+      get trainLabels() {
+        return tf.oneHot(
+          tf.tensor1d(this.datasetLabels.slice(0, this.NUM_TRAIN_ELEMENTS), 'int32'),
+          this.NUM_CLASSES
+        );
+      }
+
+      get testLabels() {
+        return tf.oneHot(
+          tf.tensor1d(this.datasetLabels.slice(this.NUM_TRAIN_ELEMENTS), 'int32'),
+          this.NUM_CLASSES
+        );
+      }
+    }
+
+    trainAndSaveModel();
+  </script>
+</body>
+</html>

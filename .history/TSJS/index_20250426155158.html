@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Handwriting Recognition</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.11.0/dist/tf.min.js"></script>
+</head>
+<body>
+  <h1>Draw a Digit</h1>
+  <div id="grid"></div>
+  <button id="clear">Clear</button>
+  <p>Prediction: <span id="prediction">None</span></p>
+
+  <script>
+    class MnistData {
+      constructor() {
+        this.MNIST_IMAGES_SPRITE_PATH =
+          'https://storage.googleapis.com/learnjs-data/model-builder/mnist_images.png';
+        this.MNIST_LABELS_PATH =
+          'https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8';
+        this.IMAGE_SIZE = 28 * 28;
+        this.NUM_CLASSES = 10;
+        this.NUM_DATASET_ELEMENTS = 65000;
+        this.NUM_TRAIN_ELEMENTS = 55000;
+        this.NUM_TEST_ELEMENTS = this.NUM_DATASET_ELEMENTS - this.NUM_TRAIN_ELEMENTS;
+
+        // Instead of massive canvas, we load smaller pieces
+        this.NUM_IMAGES_PER_ROW = 100;
+      }
+
+      async load() {
+        const imgRequest = fetch(this.MNIST_IMAGES_SPRITE_PATH);
+        const labelsRequest = fetch(this.MNIST_LABELS_PATH);
+
+        const [imgResponse, labelsResponse] = await Promise.all([imgRequest, labelsRequest]);
+
+        const imgBlob = await imgResponse.blob();
+        const imgBitmap = await createImageBitmap(imgBlob);
+
+        // Create a small canvas and cut one image at a time
+        this.canvas = document.createElement('canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.canvas.width = 28;
+        this.canvas.height = 28;
+        this.imgBitmap = imgBitmap;
+
+        const labels = new Uint8Array(await labelsResponse.arrayBuffer());
+        this.datasetLabels = labels;
+      }
+
+      getImage(index) {
+        const x = (index % this.NUM_IMAGES_PER_ROW) * 28;
+        const y = Math.floor(index / this.NUM_IMAGES_PER_ROW) * 28;
+        this.ctx.clearRect(0, 0, 28, 28);
+        this.ctx.drawImage(this.imgBitmap, x, y, 28, 28, 0, 0, 28, 28);
+
+        const imageData = this.ctx.getImageData(0, 0, 28, 28);
+        const data = new Float32Array(this.IMAGE_SIZE);
+
+        for (let i = 0; i < this.IMAGE_SIZE; i++) {
+          data[i] = imageData.data[i * 4] / 255;
+        }
+        return data;
+      }
+
+      get trainImages() {
+        const imagesArray = [];
+        for (let i = 0; i < this.NUM_TRAIN_ELEMENTS; i++) {
+          imagesArray.push(this.getImage(i));
+        }
+        return tf.tensor4d(imagesArray, [this.NUM_TRAIN_ELEMENTS, 28, 28, 1]);
+      }
+
+      get testImages() {
+        const imagesArray = [];
+        for (let i = this.NUM_TRAIN_ELEMENTS; i < this.NUM_DATASET_ELEMENTS; i++) {
+          imagesArray.push(this.getImage(i));
+        }
+        return tf.tensor4d(imagesArray, [this.NUM_TEST_ELEMENTS, 28, 28, 1]);
+      }
+
+      get trainLabels() {
+        return tf.oneHot(
+          tf.tensor1d(this.datasetLabels.slice(0, this.NUM_TRAIN_ELEMENTS), 'int32'),
+          this.NUM_CLASSES
+        );
+      }
+
+      get testLabels() {
+        return tf.oneHot(
+          tf.tensor1d(this.datasetLabels.slice(this.NUM_TRAIN_ELEMENTS), 'int32'),
+          this.NUM_CLASSES
+        );
+      }
+    }
+
+    async function trainAndSaveModel() {
+      const mnist = new MnistData();
+      await mnist.load();
+
+      const model = tf.sequential();
+
+      model.add(tf.layers.conv2d({
+        inputShape: [28, 28, 1],
+        filters: 16,
+        kernelSize: 3,
+        activation: 'relu',
+      }));
+      model.add(tf.layers.maxPooling2d({ poolSize: [2, 2] }));
+      model.add(tf.layers.flatten());
+      model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
+      model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+
+      model.compile({
+        optimizer: 'adam',
+        loss: 'categoricalCrossentropy',
+        metrics: ['accuracy'],
+      });
+
+      const BATCH_SIZE = 512;
+      const EPOCHS = 10;
+
+      const trainImages = mnist.trainImages;
+      const trainLabels = mnist.trainLabels;
+      const testImages = mnist.testImages;
+      const testLabels = mnist.testLabels;
+
+      await model.fit(trainImages, trainLabels, {
+        batchSize: BATCH_SIZE,
+        epochs: EPOCHS,
+        validationData: [testImages, testLabels],
+        callbacks: tf.callbacks.earlyStopping({ monitor: 'val_loss', patience: 2 }),
+      });
+
+      console.log('Training complete!');
+      await model.save('downloads://model');
+
+      // Cleanup memory
+      trainImages.dispose();
+      trainLabels.dispose();
+      testImages.dispose();
+      testLabels.dispose();
+    }
+
+    trainAndSaveModel();
+  </script>
+</body>
+</html>
