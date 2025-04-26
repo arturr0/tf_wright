@@ -15,6 +15,7 @@ canvas.addEventListener('mousemove', draw);
 
 function draw(e) {
   if (!isDrawing) return;
+  console.log("draw");
   ctx.lineWidth = 20;
   ctx.lineCap = 'round';
   ctx.strokeStyle = 'black';
