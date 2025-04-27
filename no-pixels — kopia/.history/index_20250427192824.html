@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MNIST CNN Model</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+</head>
+<body>
+  <h1>MNIST CNN Model Training</h1>
+  <canvas id="viz" width="28" height="28"></canvas>
+  <script>
+    // Preprocessing function with centering the digit
+    function preprocess(raw) {
+      const w = raw.width, h = raw.height, d = raw.data;
+      let [minX, minY, maxX, maxY] = [w, h, 0, 0];
+      
+      // 1) Find bounding box of non-white pixels
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (d[(y * w + x) * 4] < 250) {
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minY = Math.min(minY, y);
+            maxY = Math.max(maxY, y);
+          }
+        }
+      }
+      if (maxX < minX) return null;  // Blank
+
+      const cw = maxX - minX + 1, ch = maxY - minY + 1;
+      
+      // 2) Draw crop to a temporary canvas
+      const tmp = document.createElement('canvas');
+      tmp.width = cw;
+      tmp.height = ch;
+      tmp.getContext('2d').putImageData(raw, -minX, -minY);
+
+      // 3) Compute center of mass
+      const [cx, cy] = tf.tidy(() => {
+        const img = tf.browser.fromPixels(tmp, 1).toFloat();
+        const [Y, X] = tf.meshgrid(tf.range(0, ch), tf.range(0, cw), false);
+        const mass = img.sum();
+        const yMean = img.mul(Y).sum().div(mass);
+        const xMean = img.mul(X).sum().div(mass);
+        return [xMean.dataSync()[0], yMean.dataSync()[0]];
+      });
+
+      // 4) Resize and shift into 20×20 region
+      const scale = Math.min(20 / cw, 20 / ch);
+      const dw = cw * scale, dh = ch * scale;
+      const dx = 10 - cx * scale, dy = 10 - cy * scale;  
+      
+      const buf = document.createElement('canvas');
+      buf.width = buf.height = 28;
+      const bctx = buf.getContext('2d');
+      bctx.fillStyle = 'white';
+      bctx.fillRect(0, 0, 28, 28);
+      bctx.setTransform(scale, 0, 0, scale, 4 + dx, 4 + dy);
+      bctx.drawImage(tmp, 0, 0);
+
+      return buf;
+    }
+
+    // Visualization function
+    function visualizeImage(canvas) {
+      tf.browser.toPixels(tf.browser.fromPixels(canvas, 1).div(255), document.getElementById('viz'));
+    }
+
+    // Example function to load and preprocess MNIST data
+    async function loadAndPreprocess() {
+      const imageUrl = 'path_to_your_mnist_image.png';  // Replace with the path to your image
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const raw = ctx.getImageData(0, 0, img.width, img.height);
+        
+        const processedCanvas = preprocess(raw);
+        if (processedCanvas) {
+          visualizeImage(processedCanvas);
+          // Here you can use the processed image for training/testing.
+        }
+      };
+      img.src = imageUrl;
+    }
+
+    // Function to train the CNN model
+    async function trainModel() {
+      const model = tf.sequential();
+
+      // Adding layers to the model
+      model.add(tf.layers.conv2d({
+        inputShape: [28, 28, 1], 
+        filters: 32,
+        kernelSize: 3,
+        activation: 'relu'
+      }));
+      model.add(tf.layers.maxPooling2d({ poolSize: [2, 2] }));
+      model.add(tf.layers.conv2d({
+        filters: 64, 
+        kernelSize: 3, 
+        activation: 'relu'
+      }));
+      model.add(tf.layers.maxPooling2d({ poolSize: [2, 2] }));
+      model.add(tf.layers.flatten());
+      model.add(tf.layers.dense({ units: 128, activation: 'relu' }));
+      model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+
+      // Compile the model
+      model.compile({
+        optimizer: 'adam',
+        loss: 'sparseCategoricalCrossentropy',
+        metrics: ['accuracy']
+      });
+
+      // Example: Dummy Data (Replace with MNIST dataset)
+      const xTrain = tf.randomNormal([500, 28, 28, 1]);
+      const yTrain = tf.randomUniform([500], 0, 10, 'int32');
+
+      // Train the model
+      await model.fit(xTrain, yTrain, {
+        epochs: 10,
+        batchSize: 64,
+        callbacks: tfvis.show.fitCallbacks(
+          { name: 'Training Performance' },
+          ['loss', 'acc'], 
+          { height: 200 }
+        )
+      });
+
+      console.log("Model training complete!");
+    }
+
+    // Start training and preprocessing when the page loads
+    window.onload = () => {
+      loadAndPreprocess();  // Load and preprocess an image
+      trainModel();         // Start model training
+    };
+  </script>
+</body>
+</html>

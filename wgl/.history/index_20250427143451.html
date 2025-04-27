@@ -1,0 +1,83 @@
+async function predict(canvas) {
+  const model = await tf.loadLayersModel('/model.json');
+  console.log('Pre-trained model loaded');
+
+  // Get canvas image data
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+
+  // Create a grayscale 2D array
+  const grayImage = [];
+  for (let y = 0; y < canvas.height; y++) {
+      grayImage[y] = [];
+      for (let x = 0; x < canvas.width; x++) {
+          const i = (y * canvas.width + x) * 4;
+          // Invert colors and normalize [0,1]
+          let gray = 1.0 - (data[i] * 0.2989 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255.0;
+          grayImage[y][x] = gray;
+      }
+  }
+
+  // Center the digit
+  const centered = centerImage(grayImage);
+
+  // Convert back to tensor
+  const inputTensor = tf.tensor(centered).expandDims(0).expandDims(-1);
+
+  // Predict
+  const prediction = model.predict(inputTensor);
+  const output = prediction.dataSync();
+  console.log(tf.tensor(output));
+
+  // Find the index with highest probability
+  const predictedDigit = output.indexOf(Math.max(...output));
+  console.log(`Predicted digit: ${predictedDigit}`);
+  return predictedDigit;
+}
+
+// --- Helper to center the image ---
+function centerImage(img) {
+  const rows = img.length;
+  const cols = img[0].length;
+
+  // Calculate the bounding box
+  let top = rows, bottom = 0, left = cols, right = 0;
+  for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+          if (img[y][x] > 0.01) {  // pixel is "inked"
+              if (y < top) top = y;
+              if (y > bottom) bottom = y;
+              if (x < left) left = x;
+              if (x > right) right = x;
+          }
+      }
+  }
+
+  if (top > bottom || left > right) {
+      // No drawing found
+      return img;
+  }
+
+  const imgCrop = [];
+  for (let y = top; y <= bottom; y++) {
+      imgCrop.push(img[y].slice(left, right + 1));
+  }
+
+  // Now paste the cropped image into a new 28x28 canvas centered
+  const newImg = Array.from({ length: 28 }, () => Array(28).fill(0));
+
+  const cropHeight = imgCrop.length;
+  const cropWidth = imgCrop[0].length;
+
+  const yOffset = Math.floor((28 - cropHeight) / 2);
+  const xOffset = Math.floor((28 - cropWidth) / 2);
+
+  for (let y = 0; y < cropHeight; y++) {
+      for (let x = 0; x < cropWidth; x++) {
+          newImg[y + yOffset][x + xOffset] = imgCrop[y][x];
+      }
+  }
+
+  return newImg;
+}

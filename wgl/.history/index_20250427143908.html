@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digit Recognizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    body { text-align: center; font-family: sans-serif; }
+    canvas { border: 1px solid black; background: white; }
+    button { margin: 5px; padding: 10px 20px; }
+    #result { font-size: 24px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Draw a Digit (0–9)</h1>
+  <canvas id="canvas" width="280" height="280"></canvas><br>
+  <button onclick="clearCanvas()">Clear</button>
+  <button onclick="predictDigit()">Predict</button>
+  <div id="result"></div>
+
+  <script>
+    let canvas = document.getElementById('canvas');
+    let ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    canvas.addEventListener('mousedown', (e) => {
+      drawing = true;
+      ctx.beginPath();
+    });
+
+    canvas.addEventListener('mouseup', (e) => {
+      drawing = false;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (drawing) {
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'black';
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+      }
+    });
+
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    let model;
+    async function loadModel() {
+      model = await tf.loadLayersModel('model.json');
+      console.log('Pre-trained model loaded');
+    }
+    loadModel();
+
+    async function predictDigit() {
+      if (!model) {
+        alert('Model not loaded yet!');
+        return;
+      }
+
+      // 1. Resize canvas to 28x28
+      let smallCanvas = document.createElement('canvas');
+      smallCanvas.width = 28;
+      smallCanvas.height = 28;
+      let smallCtx = smallCanvas.getContext('2d');
+      smallCtx.drawImage(canvas, 0, 0, 28, 28);
+
+      // 2. Get pixel data
+      const imageData = smallCtx.getImageData(0, 0, 28, 28);
+      const data = imageData.data;
+
+      // 3. Process pixels
+      const grayImage = [];
+      for (let y = 0; y < 28; y++) {
+        grayImage[y] = [];
+        for (let x = 0; x < 28; x++) {
+          const i = (y * 28 + x) * 4;
+          let gray = 1.0 - (data[i] * 0.2989 + data[i+1] * 0.587 + data[i+2] * 0.114) / 255.0;
+          grayImage[y][x] = gray;
+        }
+      }
+
+      // 4. Center the digit
+      const centered = centerImage(grayImage);
+
+      // 5. Convert to tensor (and flatten for Dense network)
+      const inputTensor = tf.tensor(centered).reshape([1, 784]);
+
+      // 6. Predict
+      const prediction = model.predict(inputTensor);
+      const output = prediction.dataSync();
+      const predictedDigit = output.indexOf(Math.max(...output));
+
+      console.log(`Predicted digit: ${predictedDigit}`);
+      document.getElementById('result').innerText = `Prediction: ${predictedDigit}`;
+    }
+
+    function centerImage(image) {
+      // Find bounds
+      let minX = 28, minY = 28, maxX = 0, maxY = 0;
+      for (let y = 0; y < 28; y++) {
+        for (let x = 0; x < 28; x++) {
+          if (image[y][x] > 0.01) {
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+
+      const width = maxX - minX + 1;
+      const height = maxY - minY + 1;
+      const size = Math.max(width, height);
+
+      const newImage = [];
+      for (let y = 0; y < 28; y++) {
+        newImage[y] = [];
+        for (let x = 0; x < 28; x++) {
+          newImage[y][x] = 0;
+        }
+      }
+
+      const offsetX = Math.floor((28 - size) / 2);
+      const offsetY = Math.floor((28 - size) / 2);
+
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          newImage[offsetY + y][offsetX + x] = image[minY + y][minX + x];
+        }
+      }
+
+      return newImage;
+    }
+  </script>
+</body>
+</html>

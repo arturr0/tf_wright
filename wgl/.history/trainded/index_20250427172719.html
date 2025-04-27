@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Handwritten Digit Recognition</title>
+  <style>
+    #canvas { border: 1px solid #000; }
+    .controls { text-align: center; margin-top: 10px; }
+    button { margin: 0 5px; padding: 8px 16px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1 style="text-align:center;">Draw a digit (0–9)</h1>
+  <div style="display:flex; justify-content:center;">
+    <canvas id="canvas" width="200" height="200"></canvas>
+  </div>
+  <div class="controls">
+    <button onclick="clearCanvas()">Clear</button>
+    <button onclick="predictDigit()">Predict</button>
+    <p id="prediction-result"></p>
+  </div>
+
+  <!-- TensorFlow.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="app.js"></script>
+</body>
+</html>

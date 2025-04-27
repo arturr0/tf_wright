@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Handwritten Digit Recognition</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.18.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+  <script type="module" src="./script.js"></script>
+  <style>
+    canvas {
+      border: 1px solid black;
+      background-color: white;
+    }
+    #buttons {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Draw a Digit (0–9)</h1>
+  <canvas id="canvas" width="280" height="280"></canvas>
+  <div id="buttons">
+    <button id="clearBtn">Clear</button>
+    <button id="predictBtn">Predict</button>
+  </div>
+  <h2 id="prediction">Prediction: –</h2>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "@tensorflow/tfjs-node": "^1.7.4",
+    "express": "^5.1.0",
+    "fs": "^0.0.1-security",
+    "mnist": "^1.1.0",
+    "path": "^0.12.7"
+  }
+}

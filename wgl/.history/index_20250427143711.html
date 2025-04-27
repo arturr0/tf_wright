@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digit Recognizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    canvas {
+      border: 2px solid black;
+      background-color: white;
+      touch-action: none; /* For touch devices */
+    }
+    button {
+      margin-top: 10px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Draw a digit!</h1>
+
+<canvas id="canvas" width="280" height="280"></canvas><br>
+<button onclick="clearCanvas()">Clear</button>
+<button onclick="predictDigit()">Predict</button>
+
+<h2 id="result">Prediction: ...</h2>
+
+<script>
+let model;
+let canvas = document.getElementById('canvas');
+let ctx = canvas.getContext('2d');
+let isDrawing = false;
+
+// Setup drawing
+canvas.addEventListener('mousedown', e => {
+  isDrawing = true;
+  ctx.beginPath();
+});
+
+canvas.addEventListener('mousemove', e => {
+  if (isDrawing) {
+    ctx.lineWidth = 15;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'black';
+    ctx.lineTo(e.offsetX, e.offsetY);
+    ctx.stroke();
+  }
+});
+
+canvas.addEventListener('mouseup', e => {
+  isDrawing = false;
+});
+
+canvas.addEventListener('mouseleave', e => {
+  isDrawing = false;
+});
+
+// Touch support
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  isDrawing = true;
+  ctx.beginPath();
+});
+
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (isDrawing) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.touches[0].clientX - rect.left;
+    const y = e.touches[0].clientY - rect.top;
+    ctx.lineWidth = 15;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'black';
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  }
+});
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  isDrawing = false;
+});
+
+// Clear canvas
+function clearCanvas() {
+  ctx.fillStyle = 'white';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('result').innerText = 'Prediction: ...';
+}
+
+// Load model
+async function loadModel() {
+  model = await tf.loadLayersModel('/model.json');
+  console.log('Pre-trained model loaded');
+}
+loadModel();
+
+// Predict
+async function predictDigit() {
+  if (!model) {
+    alert('Model not loaded yet!');
+    return;
+  }
+
+  // 1. Resize canvas to 28x28
+  let smallCanvas = document.createElement('canvas');
+  smallCanvas.width = 28;
+  smallCanvas.height = 28;
+  let smallCtx = smallCanvas.getContext('2d');
+  smallCtx.drawImage(canvas, 0, 0, 28, 28);
+
+  // 2. Get pixel data
+  const imageData = smallCtx.getImageData(0, 0, 28, 28);
+  const data = imageData.data;
+
+  // 3. Process pixels
+  const grayImage = [];
+  for (let y = 0; y < 28; y++) {
+    grayImage[y] = [];
+    for (let x = 0; x < 28; x++) {
+      const i = (y * 28 + x) * 4;
+      // Invert + grayscale + normalize
+      let gray = 1.0 - (data[i] * 0.2989 + data[i+1] * 0.587 + data[i+2] * 0.114) / 255.0;
+      grayImage[y][x] = gray;
+    }
+  }
+
+  // 4. Center the digit
+  const centered = centerImage(grayImage);
+
+  // 5. Convert to tensor
+  const inputTensor = tf.tensor(centered).expandDims(0).expandDims(-1);
+
+  // 6. Predict
+  const prediction = model.predict(inputTensor);
+  const output = prediction.dataSync();
+  console.log(tf.tensor(output));
+
+  const predictedDigit = output.indexOf(Math.max(...output));
+  console.log(`Predicted digit: ${predictedDigit}`);
+  document.getElementById('result').innerText = `Prediction: ${predictedDigit}`;
+}
+
+// Centering function
+function centerImage(img) {
+  const rows = img.length;
+  const cols = img[0].length;
+
+  let top = rows, bottom = 0, left = cols, right = 0;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      if (img[y][x] > 0.01) {
+        if (y < top) top = y;
+        if (y > bottom) bottom = y;
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+  }
+
+  if (top > bottom || left > right) {
+    return img;
+  }
+
+  const imgCrop = [];
+  for (let y = top; y <= bottom; y++) {
+    imgCrop.push(img[y].slice(left, right + 1));
+  }
+
+  const newImg = Array.from({ length: 28 }, () => Array(28).fill(0));
+
+  const cropHeight = imgCrop.length;
+  const cropWidth = imgCrop[0].length;
+
+  const yOffset = Math.floor((28 - cropHeight) / 2);
+  const xOffset = Math.floor((28 - cropWidth) / 2);
+
+  for (let y = 0; y < cropHeight; y++) {
+    for (let x = 0; x < cropWidth; x++) {
+      newImg[y + yOffset][x + xOffset] = imgCrop[y][x];
+    }
+  }
+
+  return newImg;
+}
+</script>
+
+</body>
+</html>

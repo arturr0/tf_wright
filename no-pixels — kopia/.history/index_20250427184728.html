@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Digit Recognizer CNN</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+  <style>
+    canvas { border: 2px solid black; background: white; image-rendering: pixelated; }
+    .controls { text-align: center; margin-top: 10px; }
+    button { margin: 0 5px; padding: 8px 16px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1 style="text-align:center;">Draw a digit (0–9)</h1>
+  <div style="display:flex; justify-content:center;">
+    <canvas id="canvas" width="280" height="280"></canvas>
+  </div>
+  <div class="controls">
+    <button id="clearBtn">Clear</button>
+    <button id="predictBtn">Predict</button>
+    <h2 id="prediction">Prediction: –</h2>
+  </div>
+
+  <!-- MNIST data loader -->
+  <!-- <script src="data.js"></script> -->
+  <!-- Our drawing + CNN logic -->
+  <script src="script.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digit Recognizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <style>
+    body { text-align: center; font-family: sans-serif; }
+    canvas { border: 1px solid black; background: white; }
+    button { margin: 5px; padding: 10px 20px; }
+    #result { font-size: 24px; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>Draw a Digit (0–9)</h1>
+  <canvas id="canvas" width="280" height="280"></canvas><br>
+  <button onclick="clearCanvas()">Clear</button>
+  <button onclick="predictDigit()">Predict</button>
+  <div id="result"></div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+
+    canvas.addEventListener('mousedown', () => { drawing = true; ctx.beginPath(); });
+    canvas.addEventListener('mouseup', () => { drawing = false; });
+    canvas.addEventListener('mousemove', (e) => {
+      if (drawing) {
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'black';
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+      }
+    });
+
+    function clearCanvas() {
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    let model;
+    async function loadModel() {
+      model = await tf.loadLayersModel('model.json');
+      console.log('Pre-trained model loaded');
+    }
+    loadModel();
+
+    async function predictDigit() {
+      if (!model) {
+        alert('Model not loaded yet!');
+        return;
+      }
+
+      // 1. Downscale to 28x28
+      const smallCanvas = document.createElement('canvas');
+      smallCanvas.width = 28;
+      smallCanvas.height = 28;
+      const smallCtx = smallCanvas.getContext('2d');
+      smallCtx.drawImage(canvas, 0, 0, 28, 28);
+
+      const imgData = smallCtx.getImageData(0, 0, 28, 28);
+      const data = imgData.data;
+
+      // 2. Convert to grayscale array (invert colors!)
+      const input = [];
+      for (let i = 0; i < data.length; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        // Calculate brightness
+        let brightness = (r + g + b) / 3;
+        // Invert brightness (white background -> 0, black digit -> 1)
+        brightness = 1 - (brightness / 255);
+        input.push(brightness);
+      }
+
+      // 3. Create tensor
+      const tensor = tf.tensor2d([input]); // [1, 784]
+
+      // 4. Predict
+      const prediction = model.predict(tensor);
+      const output = prediction.dataSync();
+      const predictedDigit = output.indexOf(Math.max(...output));
+
+      console.log(`Predicted digit: ${predictedDigit}`);
+      document.getElementById('result').innerText = `Prediction: ${predictedDigit}`;
+    }
+
+    // Initialize canvas with white background
+    clearCanvas();
+  </script>
+</body>
+</html>
