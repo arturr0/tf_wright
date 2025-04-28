@@ -15,7 +15,7 @@ canvas.addEventListener('mousemove', draw);
 
 function draw(e) {
   if (!isDrawing) return;
-  ctx.lineWidth = 20;
+  ctx.lineWidth = 8;
   ctx.lineCap = 'round';
   ctx.strokeStyle = 'black';
   ctx.lineTo(e.offsetX, e.offsetY);
@@ -121,8 +121,13 @@ async function predictCanvas() {
   // Convert white canvas with black drawing -> black background with white digit
   let data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    // Invert colors
     let avg = (data[i] + data[i+1] + data[i+2]) / 3;
+    
+    // Threshold: treat any "almost white" as white
+    if (avg > 200) {  // you can tune this value (190–220)
+      avg = 255;
+    }
+  
     let inverted = 255 - avg;
     data[i] = inverted;
     data[i+1] = inverted;
