@@ -64,7 +64,7 @@ async function getModel() {
   model.add(tf.layers.conv2d({
     inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
     kernelSize: 5,
-    filters: 32,   // was 8
+    filters: 8,
     strides: 1,
     activation: 'relu',
     kernelInitializer: 'varianceScaling'
@@ -74,7 +74,7 @@ async function getModel() {
 
   model.add(tf.layers.conv2d({
     kernelSize: 5,
-    filters: 64,   // was 16
+    filters: 16,
     strides: 1,
     activation: 'relu',
     kernelInitializer: 'varianceScaling'
@@ -84,16 +84,10 @@ async function getModel() {
 
   model.add(tf.layers.flatten());
 
-  model.add(tf.layers.dense({   // new hidden dense layer
-    units: 64,
-    activation: 'relu',
-    kernelInitializer: 'varianceScaling'
-  }));
-
   model.add(tf.layers.dense({
     units: 10,
-    activation: 'softmax',
-    kernelInitializer: 'varianceScaling'
+    kernelInitializer: 'varianceScaling',
+    activation: 'softmax'
   }));
 
   const optimizer = tf.train.adam();
@@ -106,9 +100,8 @@ async function getModel() {
   return model;
 }
 
-
 async function trainModel(model, data) {
-  const BATCH_SIZE = 128;
+  const BATCH_SIZE = 512;
   const TRAIN_DATA_SIZE = NUM_TRAIN_ELEMENTS ;
   const TEST_DATA_SIZE = NUM_TEST_ELEMENTS;
 
@@ -131,7 +124,7 @@ async function trainModel(model, data) {
   return model.fit(trainXs, trainYs, {
     batchSize: BATCH_SIZE,
     validationData: [testXs, testYs],
-    epochs: 10,
+    epochs: 100,
     shuffle: true,
     callbacks: tfvis.show.fitCallbacks(
       { name: 'Training Performance' },
