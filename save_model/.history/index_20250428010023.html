@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digit Recognizer</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis"></script>
+  <style>
+    canvas {
+      border: 2px solid black;
+      background-color: white;
+      cursor: crosshair;
+      image-rendering: pixelated;
+    }
+    button {
+      margin: 5px;
+      padding: 10px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Draw a digit!</h1>
+  <canvas id="canvas"></canvas>
+  <br>
+  <button id="clearBtn">Clear</button>
+  <button id="predictBtn">Predict</button>
+  <h2 id="prediction">Prediction: ?</h2>
+
+  <script type="module" src="./data.js"></script>
+  <script type="module" src="./script.js"></script>
+</body>
+</html>
