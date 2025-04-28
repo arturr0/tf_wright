@@ -8,13 +8,14 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let isDrawing = false;
 
+// Setup canvas correctly for MNIST
 canvas.width = 280;
 canvas.height = 280;
 canvas.style.width = '280px';
 canvas.style.height = '280px';
 canvas.style.imageRendering = 'pixelated';
 
-ctx.fillStyle = 'black';
+ctx.fillStyle = 'black'; // 🛠 background BLACK like MNIST
 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
 canvas.addEventListener('mousedown', () => isDrawing = true);
@@ -30,9 +31,9 @@ canvas.addEventListener('mousemove', draw);
 
 function draw(e) {
   if (!isDrawing) return;
-  ctx.lineWidth = 20;
+  ctx.lineWidth = 20; // 🛠 thicker lines, like MNIST digits
   ctx.lineCap = 'round';
-  ctx.strokeStyle = 'white';
+  ctx.strokeStyle = 'white'; // 🛠 draw white on black
 
   const rect = canvas.getBoundingClientRect();
   const scaleX = canvas.width / rect.width;
@@ -48,7 +49,7 @@ document.getElementById('clearBtn').addEventListener('click', clearCanvas);
 document.getElementById('predictBtn').addEventListener('click', predictCanvas);
 
 function clearCanvas() {
-  ctx.fillStyle = 'black';
+  ctx.fillStyle = 'black'; // 🛠 black background
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.beginPath();
 }
@@ -63,7 +64,7 @@ async function getModel() {
   model.add(tf.layers.conv2d({
     inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
     kernelSize: 5,
-    filters: 64,   // increased filters
+    filters: 32,   // was 8
     strides: 1,
     activation: 'relu',
     kernelInitializer: 'varianceScaling'
@@ -73,7 +74,7 @@ async function getModel() {
 
   model.add(tf.layers.conv2d({
     kernelSize: 5,
-    filters: 128,  // increased filters
+    filters: 64,   // was 16
     strides: 1,
     activation: 'relu',
     kernelInitializer: 'varianceScaling'
@@ -82,16 +83,12 @@ async function getModel() {
   model.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
 
   model.add(tf.layers.flatten());
-  
-  model.add(tf.layers.dropout({ rate: 0.25 })); // NEW dropout after flatten
 
-  model.add(tf.layers.dense({
-    units: 128, // was 64
+  model.add(tf.layers.dense({   // new hidden dense layer
+    units: 64,
     activation: 'relu',
     kernelInitializer: 'varianceScaling'
   }));
-
-  model.add(tf.layers.dropout({ rate: 0.5 })); // NEW dropout after dense
 
   model.add(tf.layers.dense({
     units: 10,
@@ -99,8 +96,7 @@ async function getModel() {
     kernelInitializer: 'varianceScaling'
   }));
 
-  const optimizer = tf.train.adam(0.0005); // smaller learning rate
-
+  const optimizer = tf.train.adam();
   model.compile({
     optimizer: optimizer,
     loss: 'categoricalCrossentropy',
@@ -110,9 +106,10 @@ async function getModel() {
   return model;
 }
 
+
 async function trainModel(model, data) {
   const BATCH_SIZE = 128;
-  const TRAIN_DATA_SIZE = NUM_TRAIN_ELEMENTS;
+  const TRAIN_DATA_SIZE = NUM_TRAIN_ELEMENTS ;
   const TEST_DATA_SIZE = NUM_TEST_ELEMENTS;
 
   const [trainXs, trainYs] = tf.tidy(() => {
@@ -134,7 +131,7 @@ async function trainModel(model, data) {
   return model.fit(trainXs, trainYs, {
     batchSize: BATCH_SIZE,
     validationData: [testXs, testYs],
-    epochs: 10,
+    epochs: 20,
     shuffle: true,
     callbacks: tfvis.show.fitCallbacks(
       { name: 'Training Performance' },
@@ -145,6 +142,7 @@ async function trainModel(model, data) {
 }
 
 async function predictCanvas() {
+  // Shrink big canvas down to 28x28
   const smallCanvas = document.createElement('canvas');
   smallCanvas.width = 28;
   smallCanvas.height = 28;
@@ -158,10 +156,12 @@ async function predictCanvas() {
   const grayData = new Float32Array(28 * 28);
 
   for (let i = 0; i < data.length; i += 4) {
+    // Remember: after draw, white pixel means drawn, black means background
     const r = data[i];
     const g = data[i + 1];
     const b = data[i + 2];
     const avg = (r + g + b) / 3;
+    // Normalize to [0,1], background = 0, digit = 1
     grayData[i / 4] = avg / 255;
   }
 
@@ -173,6 +173,7 @@ async function predictCanvas() {
 
   document.getElementById('prediction').innerText = `Prediction: ${result}`;
 
+  // Dispose tensors
   input.dispose();
   prediction.dispose();
   pred.dispose();

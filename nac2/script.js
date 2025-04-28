@@ -1,4 +1,4 @@
-import { MnistData, NUM_TEST_ELEMENTS, NUM_TRAIN_ELEMENTS } from './data.js';
+import { MnistData } from './data.js';
 
 let model;
 let data;
@@ -8,47 +8,27 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let isDrawing = false;
 
-canvas.width = 280;
-canvas.height = 280;
-canvas.style.width = '280px';
-canvas.style.height = '280px';
-canvas.style.imageRendering = 'pixelated';
-
-ctx.fillStyle = 'black';
-ctx.fillRect(0, 0, canvas.width, canvas.height);
-
 canvas.addEventListener('mousedown', () => isDrawing = true);
-canvas.addEventListener('mouseup', () => {
-  isDrawing = false;
-  ctx.beginPath();
-});
-canvas.addEventListener('mouseout', () => {
-  isDrawing = false;
-  ctx.beginPath();
-});
+canvas.addEventListener('mouseup', () => isDrawing = false);
+canvas.addEventListener('mouseout', () => isDrawing = false);
 canvas.addEventListener('mousemove', draw);
 
 function draw(e) {
   if (!isDrawing) return;
-  ctx.lineWidth = 20;
+  ctx.lineWidth = 8;
   ctx.lineCap = 'round';
-  ctx.strokeStyle = 'white';
-
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-
-  ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+  ctx.strokeStyle = 'black';
+  ctx.lineTo(e.offsetX, e.offsetY);
   ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+  ctx.moveTo(e.offsetX, e.offsetY);
 }
 
 document.getElementById('clearBtn').addEventListener('click', clearCanvas);
 document.getElementById('predictBtn').addEventListener('click', predictCanvas);
 
 function clearCanvas() {
-  ctx.fillStyle = 'black';
+  ctx.fillStyle = 'white';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.beginPath();
 }
@@ -56,6 +36,7 @@ function clearCanvas() {
 // Model
 async function getModel() {
   const model = tf.sequential();
+
   const IMAGE_WIDTH = 28;
   const IMAGE_HEIGHT = 28;
   const IMAGE_CHANNELS = 1;
@@ -63,44 +44,34 @@ async function getModel() {
   model.add(tf.layers.conv2d({
     inputShape: [IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_CHANNELS],
     kernelSize: 5,
-    filters: 64,   // increased filters
+    filters: 8,
     strides: 1,
     activation: 'relu',
     kernelInitializer: 'varianceScaling'
   }));
 
-  model.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
+  model.add(tf.layers.maxPooling2d({poolSize: [2, 2], strides: [2, 2]}));
 
   model.add(tf.layers.conv2d({
     kernelSize: 5,
-    filters: 128,  // increased filters
+    filters: 16,
     strides: 1,
     activation: 'relu',
     kernelInitializer: 'varianceScaling'
   }));
 
-  model.add(tf.layers.maxPooling2d({ poolSize: [2, 2], strides: [2, 2] }));
+  model.add(tf.layers.maxPooling2d({poolSize: [2, 2], strides: [2, 2]}));
 
   model.add(tf.layers.flatten());
-  
-  model.add(tf.layers.dropout({ rate: 0.25 })); // NEW dropout after flatten
 
+  const NUM_OUTPUT_CLASSES = 10;
   model.add(tf.layers.dense({
-    units: 128, // was 64
-    activation: 'relu',
-    kernelInitializer: 'varianceScaling'
+    units: NUM_OUTPUT_CLASSES,
+    kernelInitializer: 'varianceScaling',
+    activation: 'softmax'
   }));
 
-  model.add(tf.layers.dropout({ rate: 0.5 })); // NEW dropout after dense
-
-  model.add(tf.layers.dense({
-    units: 10,
-    activation: 'softmax',
-    kernelInitializer: 'varianceScaling'
-  }));
-
-  const optimizer = tf.train.adam(0.0005); // smaller learning rate
-
+  const optimizer = tf.train.adam();
   model.compile({
     optimizer: optimizer,
     loss: 'categoricalCrossentropy',
@@ -111,9 +82,9 @@ async function getModel() {
 }
 
 async function trainModel(model, data) {
-  const BATCH_SIZE = 128;
-  const TRAIN_DATA_SIZE = NUM_TRAIN_ELEMENTS;
-  const TEST_DATA_SIZE = NUM_TEST_ELEMENTS;
+  const BATCH_SIZE = 512;
+  const TRAIN_DATA_SIZE = 5500;
+  const TEST_DATA_SIZE = 1000;
 
   const [trainXs, trainYs] = tf.tidy(() => {
     const d = data.nextTrainBatch(TRAIN_DATA_SIZE);
@@ -145,30 +116,37 @@ async function trainModel(model, data) {
 }
 
 async function predictCanvas() {
-  const smallCanvas = document.createElement('canvas');
-  smallCanvas.width = 28;
-  smallCanvas.height = 28;
-  const smallCtx = smallCanvas.getContext('2d');
+  let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-  smallCtx.drawImage(canvas, 0, 0, 28, 28);
-
-  const imgData = smallCtx.getImageData(0, 0, 28, 28);
-  const data = imgData.data;
-
-  const grayData = new Float32Array(28 * 28);
-
+  // Convert white canvas with black drawing -> black background with white digit
+  let data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    const avg = (r + g + b) / 3;
-    grayData[i / 4] = avg / 255;
+    let avg = (data[i] + data[i+1] + data[i+2]) / 3;
+    
+    // Threshold: treat any "almost white" as white
+    if (avg > 200) {  // you can tune this value (190–220)
+      avg = 255;
+    }
+  
+    let inverted = 255 - avg;
+    data[i] = inverted;
+    data[i+1] = inverted;
+    data[i+2] = inverted;
+    data[i+3] = 255; // fully opaque
   }
+  
+  ctx.putImageData(imgData, 0, 0); // update canvas (optional for debugging)
 
-  const input = tf.tensor4d(grayData, [1, 28, 28, 1]);
+  // Process for prediction
+  let input = tf.browser.fromPixels(imgData, 1)
+    .resizeNearestNeighbor([28, 28])
+    .toFloat()
+    .div(255.0)
+    .expandDims(0);
 
   const prediction = model.predict(input);
   const pred = prediction.argMax(1);
+
   const result = (await pred.data())[0];
 
   document.getElementById('prediction').innerText = `Prediction: ${result}`;
@@ -178,6 +156,7 @@ async function predictCanvas() {
   pred.dispose();
 }
 
+
 // Run everything
 async function run() {
   data = new MnistData();
@@ -185,7 +164,7 @@ async function run() {
   model = await getModel();
   await trainModel(model, data);
 
-  clearCanvas();
+  clearCanvas(); // Clear when ready
 }
 
 document.addEventListener('DOMContentLoaded', run);
