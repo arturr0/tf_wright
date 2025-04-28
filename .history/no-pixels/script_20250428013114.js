@@ -1,4 +1,5 @@
-import { MnistData, NUM_TEST_ELEMENTS, NUM_TRAIN_ELEMENTS } from './data.js';
+import { MnistData } from './data.js';
+import { NUM_TRAIN_ELEMENTS, NUM_TEST_ELEMENTS } from './data.js';
 
 let model;
 let data;
@@ -101,7 +102,7 @@ async function getModel() {
 }
 
 async function trainModel(model, data) {
-  const BATCH_SIZE = 512;
+  const BATCH_SIZE = 128;
   const TRAIN_DATA_SIZE = NUM_TRAIN_ELEMENTS ;
   const TEST_DATA_SIZE = NUM_TEST_ELEMENTS;
 

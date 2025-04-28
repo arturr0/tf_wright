@@ -1,4 +1,4 @@
-import { MnistData, NUM_TEST_ELEMENTS, NUM_TRAIN_ELEMENTS } from './data.js';
+import { MnistData } from './data.js';
 
 let model;
 let data;
@@ -102,8 +102,8 @@ async function getModel() {
 
 async function trainModel(model, data) {
   const BATCH_SIZE = 512;
-  const TRAIN_DATA_SIZE = NUM_TRAIN_ELEMENTS ;
-  const TEST_DATA_SIZE = NUM_TEST_ELEMENTS;
+  const TRAIN_DATA_SIZE = 65000 ;
+  const TEST_DATA_SIZE = 65000;
 
   const [trainXs, trainYs] = tf.tidy(() => {
     const d = data.nextTrainBatch(TRAIN_DATA_SIZE);
@@ -124,7 +124,7 @@ async function trainModel(model, data) {
   return model.fit(trainXs, trainYs, {
     batchSize: BATCH_SIZE,
     validationData: [testXs, testYs],
-    epochs: 10,
+    epochs: 200,
     shuffle: true,
     callbacks: tfvis.show.fitCallbacks(
       { name: 'Training Performance' },
