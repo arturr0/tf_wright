@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MNIST Digit Recognition</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.18.0/dist/tf.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: white;
+            text-align: center;
+        }
+        
+        .container {
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin-top: 20px;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 5px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            color: #fff;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 30px;
+            color: #ddd;
+        }
+        
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        canvas {
+            border: 3px solid #4a69bd;
+            border-radius: 10px;
+            background-color: black;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+            cursor: crosshair;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 12px 25px;
+            font-size: 1.1rem;
+            background: linear-gradient(to right, #4a69bd, #6a89cc);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+            background: linear-gradient(to right, #6a89cc, #4a69bd);
+        }
+        
+        #clearBtn {
+            background: linear-gradient(to right, #e55039, #eb2f06);
+        }
+        
+        #clearBtn:hover {
+            background: linear-gradient(to right, #eb2f06, #e55039);
+        }
+        
+        .results {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .prediction-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            min-width: 250px;
+            margin: 10px;
+        }
+        
+        .prediction-header {
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            color: #6a89cc;
+        }
+        
+        #prediction {
+            font-size: 4rem;
+            font-weight: bold;
+            margin: 15px 0;
+            color: #f6b93b;
+            text-shadow: 0 0 10px rgba(246, 185, 59, 0.7);
+        }
+        
+        #confidence {
+            font-size: 1.5rem;
+            color: #78e08f;
+        }
+        
+        .confidence-bar {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+        
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(to right, #78e08f, #38ada9);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+        
+        .tips {
+            text-align: left;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 25px;
+        }
+        
+        .tips h3 {
+            color: #f6b93b;
+            margin-top: 0;
+        }
+        
+        .tips ul {
+            padding-left: 20px;
+        }
+        
+        .tips li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
+        
+        .model-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .digit-examples {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        
+        .example-digit {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #1a2a6c;
+        }
+        
+        footer {
+            margin-top: 30px;
+            color: #ddd;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MNIST Digit Recognition</h1>
+        <div class="subtitle">Draw a digit (0-9) in the canvas below and click Predict</div>
+        
+        <div class="digit-examples">
+            <div class="example-digit">0</div>
+            <div class="example-digit">1</div>
+            <div class="example-digit">2</div>
+            <div class="example-digit">3</div>
+            <div class="example-digit">4</div>
+            <div class="example-digit">5</div>
+            <div class="example-digit">6</div>
+            <div class="example-digit">7</div>
+            <div class="example-digit">8</div>
+            <div class="example-digit">9</div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="canvas" width="280" height="280"></canvas>
+        </div>
+        
+        <div class="controls">
+            <button id="clearBtn">Clear Canvas</button>
+            <button id="predictBtn">Predict Digit</button>
+        </div>
+        
+        <div class="results">
+            <div class="prediction-box">
+                <div class="prediction-header">Prediction</div>
+                <div id="prediction">-</div>
+                <div id="confidence">Confidence: -</div>
+                <div class="confidence-bar">
+                    <div id="confidenceBar" class="confidence-fill" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="tips">
+            <h3>Tips for Better Predictions:</h3>
+            <ul>
+                <li>Draw digits in the center of the canvas</li>
+                <li>Make digits large enough to fill most of the canvas</li>
+                <li>Avoid very thin or very thick strokes</li>
+                <li>Ensure digits are drawn clearly without extra marks</li>
+                <li>For best results, mimic how digits are written in the MNIST dataset</li>
+            </ul>
+        </div>
+        
+        <div class="model-info">
+            <strong>Model Architecture:</strong> 2 Conv Layers (32 and 64 filters) → MaxPooling → Dropout → Flatten → Dense (128 units) → Output (10 units)
+        </div>
+    </div>
+    
+    <footer>
+        MNIST Digit Recognition using TensorFlow.js | No external data required
+    </footer>
+
+    <script>
+        // Initialize TensorFlow.js and create model
+        let model;
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        let isDrawing = false;
+        
+        // Setup canvas
+        canvas.width = 280;
+        canvas.height = 280;
+        canvas.style.width = '280px';
+        canvas.style.height = '280px';
+        canvas.style.imageRendering = 'pixelated';
+        
+        ctx.fillStyle = 'black';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.lineWidth = 20;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = 'white';
+        
+        // Drawing event handlers
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('mouseout', stopDrawing);
+        canvas.addEventListener('touchstart', handleTouchStart, {passive: false});
+        canvas.addEventListener('touchmove', handleTouchMove, {passive: false});
+        
+        document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+        document.getElementById('predictBtn').addEventListener('click', predictCanvas);
+        
+        function startDrawing(e) {
+            isDrawing = true;
+            draw(e);
+        }
+        
+        function draw(e) {
+            if (!isDrawing) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            let x, y;
+            
+            if (e.type.includes('touch')) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+            
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+        
+        function stopDrawing() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+        
+        function handleTouchStart(e) {
+            e.preventDefault();
+            startDrawing(e.touches[0]);
+        }
+        
+        function handleTouchMove(e) {
+            e.preventDefault();
+            draw(e.touches[0]);
+        }
+        
+        function clearCanvas() {
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.strokeStyle = 'white';
+            document.getElementById('prediction').textContent = '-';
+            document.getElementById('confidence').textContent = 'Confidence: -';
+            document.getElementById('confidenceBar').style.width = '0%';
+        }
+        
+        // Create the CNN model
+        async function createModel() {
+            const model = tf.sequential();
+            
+            // First convolutional layer
+            model.add(tf.layers.conv2d({
+                inputShape: [28, 28, 1],
+                kernelSize: 5,
+                filters: 32,
+                strides: 1,
+                activation: 'relu',
+                kernelInitializer: 'varianceScaling'
+            }));
+            
+            // Max pooling layer
+            model.add(tf.layers.maxPooling2d({
+                poolSize: [2, 2],
+                strides: [2, 2]
+            }));
+            
+            // Second convolutional layer
+            model.add(tf.layers.conv2d({
+                kernelSize: 5,
+                filters: 64,
+                strides: 1,
+                activation: 'relu',
+                kernelInitializer: 'varianceScaling'
+            }));
+            
+            // Max pooling layer
+            model.add(tf.layers.maxPooling2d({
+                poolSize: [2, 2],
+                strides: [2, 2]
+            }));
+            
+            // Flatten the output for dense layers
+            model.add(tf.layers.flatten());
+            
+            // Dropout layer to reduce overfitting
+            model.add(tf.layers.dropout({rate: 0.4}));
+            
+            // Dense layer
+            model.add(tf.layers.dense({
+                units: 128,
+                activation: 'relu'
+            }));
+            
+            // Output layer
+            model.add(tf.layers.dense({
+                units: 10,
+                activation: 'softmax'
+            }));
+            
+            // Compile the model
+            model.compile({
+                optimizer: tf.train.adam(0.001),
+                loss: 'categoricalCrossentropy',
+                metrics: ['accuracy']
+            });
+            
+            return model;
+        }
+        
+        // Preprocess the drawn image for prediction
+        function preprocessCanvas() {
+            // Create a temporary canvas to resize the drawing to 28x28 pixels
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 28;
+            tempCanvas.height = 28;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // Draw the original canvas to the temp canvas and scale it down
+            tempCtx.drawImage(canvas, 0, 0, 28, 28);
+            
+            // Get image data and convert to grayscale
+            const imgData = tempCtx.getImageData(0, 0, 28, 28);
+            const data = imgData.data;
+            const grayscale = [];
+            
+            for (let i = 0; i < data.length; i += 4) {
+                // Calculate grayscale value (weighted method for better accuracy)
+                const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+                // Normalize to 0-1 and invert (MNIST has white digits on black background)
+                grayscale.push((255 - gray) / 255.0);
+            }
+            
+            // Convert to TensorFlow tensor
+            return tf.tensor4d(grayscale, [1, 28, 28, 1]);
+        }
+        
+        // Predict the drawn digit
+        async function predictCanvas() {
+            if (!model) {
+                alert('Model is still loading. Please try again in a moment.');
+                return;
+            }
+            
+            // Check if the user has drawn something
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            let isEmpty = true;
+            
+            for (let i = 0; i < imageData.data.length; i += 4) {
+                if (imageData.data[i] !== 0 || 
+                    imageData.data[i+1] !== 0 || 
+                    imageData.data[i+2] !== 0) {
+                    isEmpty = false;
+                    break;
+                }
+            }
+            
+            if (isEmpty) {
+                alert('Please draw a digit before predicting.');
+                return;
+            }
+            
+            // Preprocess and predict
+            const tensor = preprocessCanvas();
+            const prediction = model.predict(tensor);
+            const values = await prediction.data();
+            
+            // Get the highest probability
+            let maxIndex = 0;
+            let maxValue = values[0];
+            
+            for (let i = 1; i < values.length; i++) {
+                if (values[i] > maxValue) {
+                    maxIndex = i;
+                    maxValue = values[i];
+                }
+            }
+            
+            // Display the prediction
+            document.getElementById('prediction').textContent = maxIndex;
+            const confidence = Math.round(maxValue * 100);
+            document.getElementById('confidence').textContent = `Confidence: ${confidence}%`;
+            document.getElementById('confidenceBar').style.width = `${confidence}%`;
+            
+            // Dispose the tensor to free memory
+            tensor.dispose();
+        }
+        
+        // Initialize the application
+        async function init() {
+            // Create the model
+            model = await createModel();
+            
+            // Display a welcome message
+            document.getElementById('prediction').textContent = 'Ready';
+            document.getElementById('confidence').textContent = 'Draw a digit above';
+        }
+        
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
