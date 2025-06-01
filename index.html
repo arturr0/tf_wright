@@ -13,82 +13,27 @@
       margin: 0 auto;
       padding: 20px;
       text-align: center;
-      background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-      color: white;
-    }
-    h1 {
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    }
-    .container {
-      background: rgba(0, 0, 0, 0.7);
-      border-radius: 15px;
-      padding: 20px;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
-      margin-top: 20px;
     }
     canvas {
-      border: 1px solid #fff;
+      border: 1px solid #000;
       margin: 20px 0;
       cursor: crosshair;
-      background: black;
-      border-radius: 10px;
-      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-    }
-    .controls {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin-bottom: 20px;
     }
     button {
-      padding: 12px 25px;
+      padding: 10px 20px;
+      margin: 0 10px;
       font-size: 16px;
       cursor: pointer;
-      background: #4a00e0;
-      color: white;
-      border: none;
-      border-radius: 30px;
-      transition: all 0.3s;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    }
-    button:hover {
-      background: #8e2de2;
-      transform: translateY(-2px);
     }
     #prediction {
       font-size: 24px;
       font-weight: bold;
       margin: 20px 0;
-      min-height: 80px;
-      padding: 15px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    .status {
-      margin: 15px 0;
-      padding: 10px;
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 5px;
-    }
-    .loading-bar {
-      width: 100%;
-      height: 10px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 5px;
-      margin-top: 5px;
-      overflow: hidden;
-    }
-    .loading-progress {
-      height: 100%;
-      background: #00c9ff;
-      width: 0%;
-      transition: width 0.5s;
-    }
-    .info {
-      margin-top: 20px;
-      font-size: 14px;
-      color: #ddd;
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
   </style>
 </head>
@@ -96,24 +41,15 @@
   <h1>MNIST Digit Recognition</h1>
   <div class="container">
     <canvas id="canvas" width="280" height="280"></canvas>
-    <div class="controls">
-      <button id="clearBtn">Clear Canvas</button>
-      <button id="predictBtn">Predict Digit</button>
+    <div>
+      <button id="clearBtn">Clear</button>
+      <button id="predictBtn">Predict</button>
     </div>
     <div id="prediction">Draw a digit above</div>
-    <div id="status" class="status">
-      <div id="statusText">Loading...</div>
-      <div class="loading-bar">
-        <div id="loadingProgress" class="loading-progress"></div>
-      </div>
-    </div>
-    <div class="info">
-      Draw a digit (0-9) in the box above and click "Predict Digit" to see the AI's prediction
-    </div>
   </div>
 
   <script>
-    // Fixed MNIST Data Provider
+    // MNIST Data Provider - inlined to avoid module issues
     class MnistData {
       constructor() {
         this.dataset = null;
@@ -124,33 +60,22 @@
       }
 
       async load() {
-        updateStatus("Loading MNIST dataset...");
-        try {
-          const [imagesResponse, labelsResponse] = await Promise.all([
-            fetch('https://storage.googleapis.com/tfjs-examples/mnist/train_images_uint8'),
-            fetch('https://storage.googleapis.com/tfjs-examples/mnist/train_labels_uint8')
-          ]);
-          
-          const [imagesArray, labelsArray] = await Promise.all([
-            imagesResponse.arrayBuffer(),
-            labelsResponse.arrayBuffer()
-          ]);
-          
-          this.dataset = {
-            images: new Uint8Array(imagesArray),
-            labels: new Uint8Array(labelsArray)
-          };
-          
-          // MNIST has 60,000 training and 10,000 test elements
-          this.trainSize = 55000;
-          this.testSize = 10000;
-          updateStatus("Dataset loaded successfully!");
-          return true;
-        } catch (error) {
-          console.error("Error loading dataset:", error);
-          updateStatus("Failed to load dataset. See console for details.");
-          return false;
-        }
+        const data = await Promise.all([
+          fetch('https://storage.googleapis.com/learnjs-data/model-builder/mnist_images_uint8')
+            .then(response => response.arrayBuffer()),
+          fetch('https://storage.googleapis.com/learnjs-data/model-builder/mnist_labels_uint8')
+            .then(response => response.arrayBuffer())
+        ]);
+
+        const [imagesArray, labelsArray] = data;
+        this.dataset = {
+          images: new Uint8Array(imagesArray),
+          labels: new Uint8Array(labelsArray)
+        };
+
+        // MNIST has 60,000 training and 10,000 test elements
+        this.trainSize = 55000;
+        this.testSize = 10000;
       }
 
       nextTrainBatch(batchSize) {
@@ -188,20 +113,9 @@
   </script>
 
   <script>
-    // Main application code
+    // Main application code - inlined to avoid module issues
     let model;
     let data;
-    let isTraining = false;
-    let trainingProgress = 0;
-
-    // Status updater
-    function updateStatus(message, progress = 0) {
-      const statusText = document.getElementById('statusText');
-      const loadingProgress = document.getElementById('loadingProgress');
-      
-      if (statusText) statusText.textContent = message;
-      if (loadingProgress) loadingProgress.style.width = `${progress}%`;
-    }
 
     // Drawing
     const canvas = document.getElementById('canvas');
@@ -218,46 +132,16 @@
     ctx.fillStyle = 'black';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    canvas.addEventListener('mousedown', startDrawing);
-    canvas.addEventListener('mouseup', stopDrawing);
-    canvas.addEventListener('mouseout', stopDrawing);
-    canvas.addEventListener('mousemove', draw);
-    
-    canvas.addEventListener('touchstart', function(e) {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const mouseEvent = new MouseEvent('mousedown', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-      });
-      canvas.dispatchEvent(mouseEvent);
-    }, false);
-    
-    canvas.addEventListener('touchend', function(e) {
-      e.preventDefault();
-      const mouseEvent = new MouseEvent('mouseup', {});
-      canvas.dispatchEvent(mouseEvent);
-    }, false);
-    
-    canvas.addEventListener('touchmove', function(e) {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const mouseEvent = new MouseEvent('mousemove', {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-      });
-      canvas.dispatchEvent(mouseEvent);
-    }, false);
-
-    function startDrawing(e) {
-      isDrawing = true;
-      draw(e);
-    }
-
-    function stopDrawing() {
+    canvas.addEventListener('mousedown', () => isDrawing = true);
+    canvas.addEventListener('mouseup', () => {
       isDrawing = false;
       ctx.beginPath();
-    }
+    });
+    canvas.addEventListener('mouseout', () => {
+      isDrawing = false;
+      ctx.beginPath();
+    });
+    canvas.addEventListener('mousemove', draw);
 
     function draw(e) {
       if (!isDrawing) return;
@@ -268,21 +152,11 @@
       const rect = canvas.getBoundingClientRect();
       const scaleX = canvas.width / rect.width;
       const scaleY = canvas.height / rect.height;
-      
-      let clientX, clientY;
-      
-      if (e.touches) {
-        clientX = e.touches[0].clientX;
-        clientY = e.touches[0].clientY;
-      } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-      }
 
-      ctx.lineTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+      ctx.lineTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo((clientX - rect.left) * scaleX, (clientY - rect.top) * scaleY);
+      ctx.moveTo((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
     }
 
     document.getElementById('clearBtn').addEventListener('click', clearCanvas);
@@ -297,8 +171,6 @@
 
     // Enhanced Model Architecture
     async function getModel() {
-      updateStatus("Creating model architecture...");
-      
       const model = tf.sequential();
       const IMAGE_WIDTH = 28;
       const IMAGE_HEIGHT = 28;
@@ -364,22 +236,15 @@
         metrics: ['accuracy'],
       });
 
-      updateStatus("Model created successfully!");
       return model;
     }
 
     // Enhanced Training Process
     async function trainModel(model, data) {
-      isTraining = true;
-      trainingProgress = 0;
-      
-      // Use smaller data sizes for Glitch
-      const TRAIN_DATA_SIZE = 1000;
-      const TEST_DATA_SIZE = 500;
       const BATCH_SIZE = 64;
-      const EPOCHS = 5;
-      
-      updateStatus("Preparing training data...", 10);
+      const TRAIN_DATA_SIZE = NUM_TRAIN_ELEMENTS;
+      const TEST_DATA_SIZE = NUM_TEST_ELEMENTS;
+      const EPOCHS = 15;
 
       const [trainXs, trainYs] = tf.tidy(() => {
         const d = data.nextTrainBatch(TRAIN_DATA_SIZE);
@@ -397,29 +262,22 @@
         ];
       });
 
-      updateStatus("Starting model training...", 20);
-      
       return model.fit(trainXs, trainYs, {
         batchSize: BATCH_SIZE,
         validationData: [testXs, testYs],
         epochs: EPOCHS,
         shuffle: true,
         callbacks: [
-          {
-            onEpochEnd: (epoch, logs) => {
-              trainingProgress = ((epoch + 1) / EPOCHS) * 100;
-              updateStatus(
-                `Training epoch ${epoch + 1}/${EPOCHS} - Loss: ${logs.loss.toFixed(4)}, Accuracy: ${(logs.acc * 100).toFixed(2)}%`,
-                20 + (trainingProgress * 0.8)
-              );
-            }
-          },
-          {
-            onTrainEnd: () => {
-              updateStatus("Training completed!", 100);
-              isTraining = false;
-            }
-          }
+          tfvis.show.fitCallbacks(
+            { name: 'Training Performance' },
+            ['loss', 'val_loss', 'acc', 'val_acc'],
+            { height: 200, callbacks: ['onEpochEnd'] }
+          ),
+          tf.callbacks.earlyStopping({
+            monitor: 'val_loss',
+            patience: 3,
+            verbose: 1
+          })
         ]
       });
     }
@@ -429,11 +287,6 @@
       if (!model) {
         console.error('Model not loaded yet');
         document.getElementById('prediction').innerText = 'Model not ready yet';
-        return;
-      }
-      
-      if (isTraining) {
-        document.getElementById('prediction').innerText = 'Please wait, model is training...';
         return;
       }
 
@@ -523,53 +376,76 @@
         Confidence: <strong>${confidence}%</strong>
       `;
       
+      // Visualize top predictions
+      visualizePredictions(scores);
+      
       // Dispose tensors
       input.dispose();
       prediction.dispose();
       pred.dispose();
     }
 
+    function visualizePredictions(scores) {
+      // Remove previous visualization if it exists
+      const existingVis = document.getElementById('predictions-vis');
+      if (existingVis) {
+        existingVis.remove();
+      }
+
+      const predictionsContainer = document.createElement('div');
+      predictionsContainer.id = 'predictions-vis';
+      document.getElementById('prediction').appendChild(predictionsContainer);
+      
+      const values = Array.from(scores).map((score, i) => {
+        return { index: i, value: score };
+      });
+      
+      // Sort by confidence
+      values.sort((a, b) => b.value - a.value);
+      
+      // Take top 3 predictions
+      const topPredictions = values.slice(0, 3);
+      
+      const surface = { name: 'Top Predictions', tab: 'Predictions' };
+      tfvis.render.barchart(
+        surface,
+        { values: topPredictions },
+        {
+          xLabel: 'Digit',
+          yLabel: 'Confidence',
+          yAxisDomain: [0, 1]
+        }
+      );
+    }
+
     // Run everything
     async function run() {
-      updateStatus("Initializing application...", 0);
-      
+      data = new MnistData();
+      await data.load();
+
       try {
-        data = new MnistData();
-        const loaded = await data.load();
-        
-        if (!loaded) {
-          document.getElementById('prediction').innerText = 'Failed to load data. Please try again.';
-          return;
-        }
-        
-        updateStatus("Loading model...", 30);
-        
-        try {
-          // Try loading model from your server (models/ directory)
-          model = await tf.loadLayersModel('https://raw.githubusercontent.com/keras-team/keras-io/master/examples/mnist_cnn.py');
-          console.log('✅ Loaded saved model from disk.');
-          updateStatus("Model loaded successfully!", 100);
-          document.getElementById('prediction').innerText = 'Model loaded - draw a digit!';
-        } catch (error) {
-          console.warn('⚠️ Could not load model, training a new one...');
-          document.getElementById('prediction').innerText = 'Training model... (this may take a few minutes)';
-          
-          // Create new model
-          model = await getModel();
-          
-          // Train new model
-          await trainModel(model, data);
-
-          updateStatus("Model training complete!", 100);
-          document.getElementById('prediction').innerText = 'Model trained - draw a digit!';
-        }
-
-        clearCanvas();
+        // Try loading model from your server (models/ directory)
+        model = await tf.loadLayersModel('/models/mnist-model.json');
+        console.log('✅ Loaded saved model from disk.');
+        document.getElementById('prediction').innerText = 'Model loaded - draw a digit!';
       } catch (error) {
-        console.error("Error during initialization:", error);
-        updateStatus(`Initialization failed: ${error.message}`);
-        document.getElementById('prediction').innerText = 'Initialization failed. See console for details.';
+        console.warn('⚠️ Could not load model, training a new one...');
+        document.getElementById('prediction').innerText = 'Training model... (this may take a few minutes)';
+        
+        // Create new model
+        model = await getModel();
+        
+        // Train new model
+        await trainModel(model, data);
+
+        // Save model to download
+        await model.save('downloads://mnist-model');
+
+        console.log('✅ Model trained and downloaded. Move it to /models/ folder manually!');
+        document.getElementById('prediction').innerText = 'Model trained - draw a digit!';
       }
+
+      clearCanvas();
     }
 
     document.addEventListener('DOMContentLoaded', run);
